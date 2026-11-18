@@ -39,13 +39,13 @@ const webhookService = {
 			msgtype: "text",
 			text: {
 				content: [
-					`emailId: ${emailRow.emailId}`,
-					`sendEmail: ${emailRow.sendEmail}`,
-					`toEmail: ${emailRow.toEmail}`,
-					`subject: ${emailRow.subject}`,
+					`邮箱Id: ${emailRow.emailId}`,
+					`发送者: ${emailRow.sendEmail}`,
+					`接收者: ${emailRow.toEmail}`,
+					`主题: ${emailRow.subject}`,
 					`text: ${emailRow.text}`,
-					`content: ${emailRow.content}`,
-					`createTime: ${emailRow.createTime}`,
+					`内容: ${emailRow.content}`,
+					`时间: ${emailRow.createTime}`,
 					].join("\n")
 			}
 			
