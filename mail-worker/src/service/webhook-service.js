@@ -23,17 +23,32 @@ const webhookService = {
 			headers['Authorization'] = webhookSecret;
 		}
 
+		// const body = JSON.stringify({
+		// 	emailId: emailRow.emailId,
+		// 	sendEmail: emailRow.sendEmail,
+		// 	sendName: emailRow.name,
+		// 	toEmail: emailRow.toEmail,
+		// 	toName: emailRow.toName,
+		// 	subject: emailRow.subject,
+		// 	text: emailRow.text,
+		// 	content: emailRow.content,
+		// 	code: emailRow.code,
+		// 	createTime: emailRow.createTime
+		// });
 		const body = JSON.stringify({
-			emailId: emailRow.emailId,
-			sendEmail: emailRow.sendEmail,
-			sendName: emailRow.name,
-			toEmail: emailRow.toEmail,
-			toName: emailRow.toName,
-			subject: emailRow.subject,
-			text: emailRow.text,
-			content: emailRow.content,
-			code: emailRow.code,
-			createTime: emailRow.createTime
+			msgtype: "text",
+			text: {
+				content: [
+					`emailId: ${emailRow.emailId}`,
+					`sendEmail: ${emailRow.sendEmail}`,
+					`toEmail: ${emailRow.toEmail}`,
+					`subject: ${emailRow.subject}`,
+					`text: ${emailRow.text}`,
+					`content: ${emailRow.content}`,
+					`createTime: ${emailRow.createTime}`,
+					].join("\n")
+			}
+			
 		});
 
 		let lastError = '';
