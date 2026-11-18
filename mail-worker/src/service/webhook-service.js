@@ -39,9 +39,9 @@ const webhookService = {
 			msgtype: "text",
 			text: {
 				content: [
-					`邮箱Id: ${emailRow.emailId}`,
-					`发送者: ${emailRow.sendEmail}`,
-					`接收者: ${emailRow.toEmail}`,
+					`NoId: ${emailRow.emailId}`,
+					`发件: ${emailRow.sendEmail}`,
+					`收件: ${emailRow.toEmail}`,
 					`主题: ${emailRow.subject}`,
 					`text: ${emailRow.text}`,
 					`内容: ${emailRow.content}`,
