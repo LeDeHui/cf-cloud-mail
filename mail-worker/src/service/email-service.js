@@ -967,7 +967,7 @@ const emailService = {
 		const { tgBotStatus, tgChatId, forwardStatus, forwardEmail, webhookStatus, webhookUrl, webhookRetry, webhookSecret, ruleEmail, ruleType } = await settingService.query(c);
 
 		if (ruleType === settingConst.ruleType.RULE) {
-			const emails = ruleEmail.split(',');
+			const emails = ruleEmail.split(',').map(item => item.trim());
 			emailRowList = emailRowList.filter(emailRow => emails.includes(emailRow.toEmail));
 		}
 

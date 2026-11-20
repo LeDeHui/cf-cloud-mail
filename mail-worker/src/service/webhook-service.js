@@ -1,5 +1,15 @@
 import domainUtils from '../utils/domain-uitls';
 
+// 企业微信 text 消息上限约 2048 字节，留一部分余量给字段名和换行
+const MAX_BYTES = 1800;
+
+function truncate(value, maxBytes = MAX_BYTES) {
+	if (value === undefined || value === null) return '';
+	const bytes = new TextEncoder().encode(String(value));
+	if (bytes.length <= maxBytes) return String(value);
+	return new TextDecoder().decode(bytes.slice(0, maxBytes)) + '…(truncated)';
+}
+
 const webhookService = {
 
 	async sendEmail(c, emailRow, webhookUrl, retry = 0, webhookSecret) {
@@ -35,21 +45,37 @@ const webhookService = {
 		// 	code: emailRow.code,
 		// 	createTime: emailRow.createTime
 		// });
+		// 正文合并为一行：text 优先 → content 回退 → 都没有时提示后台查看
+		let bodyText = '';
+		if (emailRow.text && String(emailRow.text).trim()) {
+			bodyText = emailRow.text;
+		} else if (emailRow.content && String(emailRow.content).trim()) {
+			bodyText = emailRow.content;
+		} else {
+			bodyText = '请后台查看';
+		}
+
+		const contentLines = [
+			`NoId: ${emailRow.emailId}`,
+			`发件: ${truncate(emailRow.sendEmail, 120)}`,
+			`收件: ${truncate(emailRow.toEmail, 120)}`,
+			`主题: ${truncate(emailRow.subject, 200)}`,
+			`text: ${truncate(bodyText, 1200)}`,
+			`时间: ${emailRow.createTime}`
+		];
+		if (emailRow.code) {
+			contentLines.push(`验证码: ${emailRow.code}`);
+		}
+		const content = contentLines.join("\n");
+
+		const finalContent = truncate(content, MAX_BYTES);
 		const body = JSON.stringify({
 			msgtype: "text",
 			text: {
-				content: [
-					`NoId: ${emailRow.emailId}`,
-					`发件: ${emailRow.sendEmail}`,
-					`收件: ${emailRow.toEmail}`,
-					`主题: ${emailRow.subject}`,
-					`text: ${emailRow.text}`,
-					`内容: ${emailRow.content}`,
-					`时间: ${emailRow.createTime}`,
-					].join("\n")
+				content: finalContent
 			}
-			
 		});
+		console.info(`Webhook 载荷: emailId=${emailRow.emailId} 原始=${new TextEncoder().encode(content).length}B 发送=${new TextEncoder().encode(finalContent).length}B`);
 
 		let lastError = '';
 		let host = webhookUrl;
@@ -93,6 +119,10 @@ const webhookService = {
 				return;
 			} catch (e) {
 				lastError = e.message;
+			}
+
+			if (i < retry) {
+				await new Promise(resolve => setTimeout(resolve, 500 * (i + 1)));
 			}
 		}
 

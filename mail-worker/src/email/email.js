@@ -39,6 +39,7 @@ export async function email(message, env, ctx) {
 		} = await settingService.query({ env });
 
 		if (receive === settingConst.receive.CLOSE) {
+			console.info(`[收信] 跳过: 收件功能已关闭 to=${message.to}`);
 			message.setReject('Service suspended');
 			return;
 		}
@@ -55,9 +56,10 @@ export async function email(message, env, ctx) {
 		const email = await PostalMime.parse(content);
 
 
-		const blockFlag = checkBlock(blackSubject, blackContent, blackFrom, email);
+		const blockReason = checkBlock(blackSubject, blackContent, blackFrom, email);
 
-		if (blockFlag) {
+		if (blockReason) {
+			console.info(`[收信] 跳过: 命中黑名单(${blockReason}) to=${message.to} subject=${email.subject || ''}`);
 			message.setReject('Message rejected');
 			return;
 		}
@@ -72,6 +74,7 @@ export async function email(message, env, ctx) {
 		}
 
 		if (!account && noRecipient === settingConst.noRecipient.CLOSE) {
+			console.info(`[收信] 跳过: 收件人不存在 to=${message.to} from=${email.from?.address || ''}`);
 			message.setReject('Recipient not found');
 			return;
 		}
@@ -87,11 +90,13 @@ export async function email(message, env, ctx) {
 			let { banEmail, availDomain } = await roleService.selectByUserId({ env: env }, account.userId);
 
 			if (!roleService.hasAvailDomainPerm(availDomain, message.to)) {
+				console.info(`[收信] 跳过: 收件域名无权限 to=${message.to} availDomain=${availDomain}`);
 				message.setReject('The recipient is not authorized to use this domain.');
 				return;
 			}
 
 			if(roleService.isBanEmail(banEmail, email.from.address)) {
+				console.info(`[收信] 跳过: 发件人被角色禁用 from=${email.from.address} banEmail=${banEmail}`);
 				message.setReject('The recipient is disabled from receiving emails.');
 				return;
 			}
@@ -160,12 +165,21 @@ export async function email(message, env, ctx) {
 
 		emailRow = await emailService.completeReceive({ env }, account ? emailConst.status.RECEIVE : emailConst.status.NOONE, emailRow.emailId);
 
+		const webhookOpen = webhookStatus === settingConst.webhookStatus.OPEN && !!webhookUrl;
+		let webhookHost = '(unset)';
+		try {
+			if (webhookUrl) webhookHost = new URL(webhookUrl).host;
+		} catch (e) {
+			webhookHost = '(invalid url)';
+		}
+		const webhookLog = `[收信] Webhook emailId=${emailRow.emailId} status=${webhookStatus} host=${webhookHost} ruleType=${ruleType} to=${message.to}`;
 
 		if (ruleType === settingConst.ruleType.RULE) {
 
-			const emails = ruleEmail.split(',');
+			const emails = ruleEmail.split(',').map(item => item.trim());
 
 			if (!emails.includes(message.to)) {
+				console.info(`${webhookLog} 结果=被转发规则过滤`);
 				return;
 			}
 
@@ -194,14 +208,7 @@ export async function email(message, env, ctx) {
 		}
 
 		//转发到 Webhook
-		const webhookOpen = webhookStatus === settingConst.webhookStatus.OPEN && !!webhookUrl;
-		let webhookHost = '(unset)';
-		try {
-			if (webhookUrl) webhookHost = new URL(webhookUrl).host;
-		} catch (e) {
-			webhookHost = '(invalid url)';
-		}
-		console.info(`[收信] Webhook 状态: ${webhookOpen ? '发送' : '跳过'} emailId=${emailRow.emailId} status=${webhookStatus} host=${webhookHost} ruleType=${ruleType}`);
+		console.info(`${webhookLog} 结果=${webhookOpen ? '发送' : '跳过'}`);
 		if (webhookOpen) {
 			await webhookService.sendEmail({ env }, emailRow, webhookUrl, webhookRetry, webhookSecret);
 		}
@@ -220,19 +227,19 @@ function checkBlock(blackSubjectStr, blackContentStr, blackFromStr, email) {
 
 	for (const blackSubject of blackSubjectList) {
 		if (email.subject?.includes(blackSubject)) {
-			return true
+			return `subject:${blackSubject}`
 		}
 	}
 
 	for (const blackContent of blackContentList) {
 		if (email.html?.includes(blackContent) || email.text?.includes(blackContent)) {
-			return true
+			return `content:${blackContent}`
 		}
 	}
 
 	for (const blackFrom of blackFromList) {
 		if (email.from.address === blackFrom || emailUtils.getDomain(email.from.address) === blackFrom) {
-			return true
+			return `from:${blackFrom}`
 		}
 	}
 
