@@ -1052,16 +1052,10 @@ const webhookRetry = ref(0)
 const webhookSecret = ref('')
 const webhookFormatShow = ref(false)
 const webhookPayloadExample = `{
-  "emailId": 1,
-  "sendEmail": "hello@example.com",
-  "sendName": "hello",
-  "toEmail": "admin@example.com",
-  "toName": "admin",
-  "subject": "Hello",
-  "text": "Hello",
-  "content": "<div>Hello</div>",
-  "code": "123456",
-  "createTime": "2099-12-30 23:59:59"
+  "msgtype": "text",
+  "text": {
+    "content": "NoId: 1\n发件: hello@example.com\n收件: admin@example.com\n主题: Hello\ntext: Hello\n内容: <div>Hello</div>\n时间: 2099-12-30 23:59:59"
+  }
 }`
 const emailColumnWidth = ref(0)
 const tokenColumnWidth = ref(0)

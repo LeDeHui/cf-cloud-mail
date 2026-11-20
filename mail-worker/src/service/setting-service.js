@@ -113,6 +113,23 @@ const settingService = {
 
 	async set(c, params) {
 		const settingData = await this.query(c);
+
+		// 配置接口会把密钥打码后返回给前端，直接回写会把星号存进数据库，
+		// 导致 TG/Webhook/Resend 等带鉴权的调用全部失败。这里保留原值。
+		const maskedFields = ['webhookSecret', 'tgBotToken', 'secretKey', 's3AccessKey', 's3SecretKey'];
+		for (const field of maskedFields) {
+			if (typeof params[field] === 'string' && params[field].includes('******')) {
+				delete params[field];
+			}
+		}
+		if (params.resendTokens && typeof params.resendTokens === 'object') {
+			for (const [domain, token] of Object.entries(params.resendTokens)) {
+				if (typeof token === 'string' && token.includes('******')) {
+					delete params.resendTokens[domain];
+				}
+			}
+		}
+
 		let resendTokens = { ...settingData.resendTokens, ...params.resendTokens };
 		Object.keys(resendTokens).forEach(domain => {
 			if (!resendTokens[domain]) delete resendTokens[domain];

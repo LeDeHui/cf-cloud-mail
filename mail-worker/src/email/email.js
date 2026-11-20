@@ -194,7 +194,15 @@ export async function email(message, env, ctx) {
 		}
 
 		//转发到 Webhook
-		if (webhookStatus === settingConst.webhookStatus.OPEN && webhookUrl) {
+		const webhookOpen = webhookStatus === settingConst.webhookStatus.OPEN && !!webhookUrl;
+		let webhookHost = '(unset)';
+		try {
+			if (webhookUrl) webhookHost = new URL(webhookUrl).host;
+		} catch (e) {
+			webhookHost = '(invalid url)';
+		}
+		console.info(`[收信] Webhook 状态: ${webhookOpen ? '发送' : '跳过'} emailId=${emailRow.emailId} status=${webhookStatus} host=${webhookHost} ruleType=${ruleType}`);
+		if (webhookOpen) {
 			await webhookService.sendEmail({ env }, emailRow, webhookUrl, webhookRetry, webhookSecret);
 		}
 

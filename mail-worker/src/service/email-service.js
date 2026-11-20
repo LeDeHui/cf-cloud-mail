@@ -978,8 +978,16 @@ const emailService = {
 				await telegramService.sendEmailToBot(c, emailRow);
 			}
 
-			//转发到 Webhook
-			if (webhookStatus === settingConst.webhookStatus.OPEN && webhookUrl) {
+			//转发到 Webhook（站内邮件不经过 email 事件）
+			const webhookOpen = webhookStatus === settingConst.webhookStatus.OPEN && !!webhookUrl;
+			let webhookHost = '(unset)';
+			try {
+				if (webhookUrl) webhookHost = new URL(webhookUrl).host;
+			} catch (e) {
+				webhookHost = '(invalid url)';
+			}
+			console.info(`[站内] Webhook 状态: ${webhookOpen ? '发送' : '跳过'} emailId=${emailRow.emailId} status=${webhookStatus} host=${webhookHost} ruleType=${ruleType}`);
+			if (webhookOpen) {
 				await webhookService.sendEmail(c, emailRow, webhookUrl, webhookRetry, webhookSecret);
 			}
 

@@ -52,6 +52,12 @@ const webhookService = {
 		});
 
 		let lastError = '';
+		let host = webhookUrl;
+		try {
+			host = new URL(webhookUrl).host;
+		} catch (e) {
+			// URL 转换异常时保留原值，仅用于日志
+		}
 
 		for (let i = 0; i <= retry; i++) {
 			try {
@@ -61,17 +67,36 @@ const webhookService = {
 					body
 				});
 
-				if (res.ok) {
-					return;
+				const responseText = await res.text();
+
+				// 企微/钉钉等机器人即使业务失败也返回 HTTP 200，需要解析响应体
+				let payload = null;
+				try {
+					payload = JSON.parse(responseText);
+				} catch (e) {
+					// 非 JSON 响应按 HTTP 状态码判断
 				}
 
-				lastError = `status: ${res.status} response: ${await res.text()}`;
+				if (payload && payload.errcode !== undefined && Number(payload.errcode) !== 0) {
+					throw new Error(`errcode: ${payload.errcode} errmsg: ${payload.errmsg || ''}`);
+				}
+
+				if (payload && payload.StatusCode !== undefined && Number(payload.StatusCode) !== 0) {
+					throw new Error(`StatusCode: ${payload.StatusCode} message: ${payload.StatusMessage || ''}`);
+				}
+
+				if (!res.ok) {
+					throw new Error(`status: ${res.status} response: ${responseText}`);
+				}
+
+				console.info(`Webhook 推送成功: ${host} emailId=${emailRow.emailId}`);
+				return;
 			} catch (e) {
 				lastError = e.message;
 			}
 		}
 
-		console.error(`Webhook 推送失败: ${lastError}`);
+		console.error(`Webhook 推送失败: ${host} emailId=${emailRow.emailId} error=${lastError}`);
 	}
 
 };
